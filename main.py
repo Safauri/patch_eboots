@@ -1,22 +1,32 @@
 import sys
 
-def main(filename, old, new):
+def main(filename, replacements):
     try:
         with open(filename, "rb+") as f:
             data = f.read()
-            if (index := data.find(old.encode())) == -1:
-                return
-            f.seek(index)
-            f.write(new.encode().ljust(len(old), b"\x00"))
-            print(f"Renamed '{old}' to '{new}' at 0x{index:X}")
+
+            for old, new in replacements:
+                old_bytes, new_bytes = old.encode() + b"\x00", new.encode().ljust(len(old) + 1, b"\x00")
+                offset = 0
+
+                while (index := data.find(old_bytes, offset)) != -1:
+                    print(f"[+] Patched: {old} → {new} @ 0x{index:X}")
+                    f.seek(index)
+                    f.write(new_bytes)
+                    offset = index + len(old_bytes)  # Move past current occurrence
+
+        print("\n[✓] Patch complete.")
+
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"[!] Error: {e}")
+
+    input("\nPress Enter to exit...")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Provide an ELF file.")
+        print("[!] Drag and drop an ELF file onto this script.")
     else:
-        for old, new in [("ros.rockstargames.com", "ros.gtao.me"), ("https://", "http://"), ("cyprusv.se", "ros.gtao.me")]:
-            main(sys.argv[1], old, new)
-
-    input("\nPress Enter to exit...")
+        main(sys.argv[1], [
+            ("ros.rockstargames.com", "ros.gtao.me"),
+            ("https://", "http://") # 2 checks
+        ])
